@@ -5,20 +5,26 @@ namespace CoolCurl.Services;
 
 public class ConfigurationService
 {
-    private const string ConfigFileName = ".cool_curl_config";
+    private readonly string _configDirectory;
     private readonly string _configFilePath;
 
     public ConfigurationService()
     {
-        _configFilePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ConfigFileName
-        );
-        EnsureConfigFileExists();
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        _configDirectory = Path.Combine(homeDirectory, ".cool-curl");
+        _configFilePath = Path.Combine(_configDirectory, ".config");
+        EnsureConfigDirectoryAndFileExist();
     }
 
-    private void EnsureConfigFileExists()
+    private void EnsureConfigDirectoryAndFileExist()
     {
+        // Create directory if it doesn't exist
+        if (!Directory.Exists(_configDirectory))
+        {
+            Directory.CreateDirectory(_configDirectory);
+        }
+
+        // Create config file if it doesn't exist or is invalid
         if (!File.Exists(_configFilePath) || !IsValidConfig())
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -169,6 +175,27 @@ public class ConfigurationService
         }
 
         Console.WriteLine();
+        Console.WriteLine("Query Parameters:");
+        Console.WriteLine("Do you want to add default query parameters? (y/n) [default: n]: ");
+        var addQueryParams = Console.ReadLine()?.ToLower();
+
+        if (addQueryParams == "y")
+        {
+            Console.WriteLine("Enter query parameters (leave key empty to finish):");
+            while (true)
+            {
+                Console.Write("Parameter name: ");
+                var paramName = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(paramName))
+                    break;
+
+                Console.Write($"Value for {paramName}: ");
+                var paramValue = Console.ReadLine() ?? "";
+                settings.QueryParameters[paramName] = paramValue;
+            }
+        }
+
+        Console.WriteLine();
         Console.Write("Enter an initial path (leave empty to skip): ");
         var initialPath = Console.ReadLine();
 
@@ -252,7 +279,47 @@ public class ConfigurationService
 
         settings.RecentPaths.Insert(0, path);
 
+        // Clear query parameters when a new path is added
+        settings.QueryParameters = new Dictionary<string, string>();
+
         SaveSettings(settings);
+    }
+
+    public bool ValidateSettings(out string errorMessage)
+    {
+        var settings = LoadSettings();
+        errorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(settings.BaseUrl))
+        {
+            errorMessage = "Base URL is not configured.";
+            return false;
+        }
+
+        if (settings.RecentPaths.Count == 0)
+        {
+            errorMessage = "No paths available. Use -p <path> to add a path.";
+            return false;
+        }
+
+        if (settings.AuthType == AuthType.BasicAuth)
+        {
+            if (string.IsNullOrWhiteSpace(settings.BasicAuthUsername))
+            {
+                errorMessage = "Basic Auth is configured but username is missing.";
+                return false;
+            }
+        }
+        else if (settings.AuthType != AuthType.None)
+        {
+            if (string.IsNullOrWhiteSpace(settings.AuthToken))
+            {
+                errorMessage = $"{settings.AuthType} is configured but auth token is missing.";
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public void DisplaySettings()
@@ -294,6 +361,22 @@ public class ConfigurationService
             foreach (var header in settings.DefaultHeaders)
             {
                 Console.WriteLine($"  {header.Key}: {header.Value}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("  (none)");
+        }
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Query Parameters:");
+        Console.ResetColor();
+        if (settings.QueryParameters.Count > 0)
+        {
+            foreach (var param in settings.QueryParameters)
+            {
+                Console.WriteLine($"  {param.Key}: {param.Value}");
             }
         }
         else

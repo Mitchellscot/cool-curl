@@ -20,4 +20,5 @@ public class Settings
         { "Content-Type", "application/json" },
         { "User-Agent", "CoolCurl/1.0" }
     };
+    public Dictionary<string, string> QueryParameters { get; set; } = new();
 }

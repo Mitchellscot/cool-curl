@@ -18,7 +18,7 @@ public class CurlService
         var curl = new StringBuilder("curl");
 
         // Build the URL
-        var url = BuildUrl(settings, pathOverride);
+        var url = HttpUtility.BuildUrl(settings, pathOverride);
 
         // Add HTTP method
         if (!string.IsNullOrWhiteSpace(settings.DefaultMethod) && settings.DefaultMethod.ToUpper() != "GET")
@@ -64,26 +64,6 @@ public class CurlService
         return curl.ToString();
     }
 
-    private string BuildUrl(Settings settings, string? pathOverride)
-    {
-        var baseUrl = settings.BaseUrl?.TrimEnd('/') ?? "";
-
-        // Use override path if provided, otherwise use most recent path
-        var path = pathOverride;
-        if (string.IsNullOrWhiteSpace(path) && settings.RecentPaths.Count > 0)
-        {
-            path = settings.RecentPaths[0];
-        }
-
-        // Ensure path starts with /
-        if (!string.IsNullOrWhiteSpace(path) && !path.StartsWith("/"))
-        {
-            path = "/" + path;
-        }
-
-        return baseUrl + (path ?? "");
-    }
-
     private void AddAuthentication(StringBuilder curl, Settings settings)
     {
         switch (settings.AuthType)
@@ -124,7 +104,7 @@ public class CurlService
         }
     }
 
-    public void PrintCurlCommand(string? pathOverride = null)
+    public void PrintCurlCommand(string? pathOverride = null, bool saveToDisk = false)
     {
         var command = BuildCurlCommand(pathOverride);
 
@@ -136,5 +116,22 @@ public class CurlService
         Console.WriteLine(command);
         Console.ResetColor();
         Console.WriteLine();
+
+        // Save to disk if requested
+        if (saveToDisk)
+        {
+            SaveCurlCommand(command);
+        }
+    }
+
+    public void SaveCurlCommandOnly(string? pathOverride = null)
+    {
+        var command = BuildCurlCommand(pathOverride);
+        SaveCurlCommand(command);
+    }
+
+    private void SaveCurlCommand(string command)
+    {
+        HttpUtility.SaveToFile(command, "curl-commands", "curl", "Curl command saved to");
     }
 }
