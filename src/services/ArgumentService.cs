@@ -24,6 +24,10 @@ public class ArgumentService
     public bool ChangeMaxTimeout { get; private set; }
     public bool ChangeDefaultHeaders { get; private set; }
     public bool ChangeQueryParameters { get; private set; }
+    public bool ChangeGeminiApiKey { get; private set; }
+    public bool ChangeAiDebugging { get; private set; }
+    public bool UseAiPrompt { get; private set; }
+    public string? AiPrompt { get; private set; }
     public string? Path { get; private set; }
 
     public ArgumentService(string[] args)
@@ -117,15 +121,31 @@ public class ArgumentService
                 case "--query-parameters":
                     ChangeQueryParameters = true;
                     break;
+                case "-gk":
+                case "--gemini-key":
+                    ChangeGeminiApiKey = true;
+                    break;
+                case "-ad":
+                case "--ai-debugging":
+                    ChangeAiDebugging = true;
+                    break;
+                case "-ai":
+                case "--ai-prompt":
+                    if (i + 1 < args.Length)
+                    {
+                        UseAiPrompt = true;
+                        AiPrompt = args[i + 1];
+                        i++;
+                    }
+                    break;
                 case "-p":
                 case "--path":
                     if (i + 1 < args.Length)
                     {
                         Path = args[i + 1];
-                        i++; // Skip the next argument since we've consumed it
+                        i++;
                     }
                     break;
-                    // Add more argument cases here as needed
             }
         }
     }
@@ -624,9 +644,64 @@ public class ArgumentService
 
             default:
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Invalid option.");
+                Console.WriteLine("Invalid option. Please choose 1, 2, or 3.");
                 Console.ResetColor();
                 break;
+        }
+    }
+
+    public void HandleGeminiApiKeyChange(ConfigurationService configService)
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("\n=== Change Gemini API Key ===\n");
+        Console.ResetColor();
+
+        var currentSettings = configService.GetSettings();
+        var maskedKey = string.IsNullOrEmpty(currentSettings.GeminiApiKey) ? "(not set)" : "***" + currentSettings.GeminiApiKey[^4..];
+        Console.WriteLine($"Current Gemini API Key: {maskedKey}");
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Warning: API key will be stored in plain text!");
+        Console.ResetColor();
+        Console.Write("\nEnter new Gemini API key (leave empty to clear): ");
+        var input = Console.ReadLine();
+
+        currentSettings.GeminiApiKey = string.IsNullOrWhiteSpace(input) ? null : input.Trim();
+        configService.UpdateSettings(currentSettings);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine(currentSettings.GeminiApiKey == null ? "\nGemini API key cleared." : "\nGemini API key updated.");
+        Console.ResetColor();
+    }
+
+    public void HandleAiDebuggingChange(ConfigurationService configService)
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("\n=== Change AI Debugging Setting ===\n");
+        Console.ResetColor();
+
+        var currentSettings = configService.GetSettings();
+        Console.WriteLine($"Current setting: {(currentSettings.AllowAiDebugging ? "Enabled" : "Disabled")}");
+        Console.WriteLine("\nWhen enabled, AI will analyze HTTP errors and suggest fixes.");
+        Console.WriteLine("This requires a valid Gemini API key.");
+
+        Console.Write("\nEnable AI debugging? (true/false): ");
+        var input = Console.ReadLine();
+
+        if (bool.TryParse(input, out bool value))
+        {
+            currentSettings.AllowAiDebugging = value;
+            configService.UpdateSettings(currentSettings);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\nAI debugging {(value ? "enabled" : "disabled")}.");
+            Console.ResetColor();
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("Invalid input. Please enter 'true' or 'false'.");
+            Console.ResetColor();
         }
     }
 }

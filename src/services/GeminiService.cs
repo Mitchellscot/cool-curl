@@ -1,0 +1,241 @@
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using CoolCurl.Models;
+
+namespace CoolCurl.Services;
+
+public class GeminiService : IAiClient
+{
+    private readonly ConfigurationService _configService;
+    private readonly HttpClient _httpClient;
+    private const string GeminiApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
+
+    private const string SystemPrompt = @"You are a curl command generator assistant. Your job is to generate ONLY a valid curl command based on the user's request and their configuration.
+
+Rules:
+1. Generate ONLY the curl command - no explanations, no markdown, no extra text
+2. PRIORITIZE the user's explicit request over configuration defaults
+3. If the user specifies an HTTP method (GET, POST, PUT, DELETE, etc.), use THAT method, not the default from configuration
+4. If the user specifies a path, use ONLY that path - do not add query parameters unless explicitly requested
+5. Use the base URL from the configuration
+6. Include authentication headers if specified in the configuration - use the placeholder ""REPLACEME"" for tokens/passwords
+7. Include default headers from the configuration
+8. Add appropriate flags like -L (follow redirects), -i (show headers), --show-error, etc. based on configuration
+9. For POST/PUT/PATCH requests, include appropriate -d flag with sample JSON data if needed
+10. The output must be a single line, executable curl command
+11. Do NOT include any explanations or additional text
+12. IMPORTANT: For any authentication tokens, API keys, or passwords, always use the exact string ""REPLACEME"" as a placeholder
+
+Example output format:
+curl -X POST -H ""Authorization: Bearer REPLACEME"" -H ""Content-Type: application/json"" ""https://api.example.com/users"" -d '{""name"":""John""}'
+
+For Basic Auth, use: -u REPLACEME or -H ""Authorization: Basic REPLACEME""";
+    public GeminiService(ConfigurationService configService)
+    {
+        _configService = configService;
+        _httpClient = new HttpClient();
+    }
+
+    public async Task<string?> GenerateCurlCommandAsync(string userPrompt)
+    {
+        var settings = _configService.GetSettings();
+
+        if (string.IsNullOrWhiteSpace(settings.GeminiApiKey))
+        {
+            throw new InvalidOperationException("Gemini API key is not configured. Use -gk to set your API key.");
+        }
+
+        var context = BuildConfigurationContext(settings);
+        var fullPrompt = $"{SystemPrompt}\n\nUser Configuration:\n{context}\n\nUser Request: {userPrompt}";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    parts = new[]
+                    {
+                        new { text = fullPrompt }
+                    }
+                }
+            }
+        };
+
+        var jsonContent = JsonSerializer.Serialize(requestBody);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, GeminiApiUrl)
+        {
+            Content = content
+        };
+        request.Headers.Add("x-goog-api-key", settings.GeminiApiKey);
+
+        try
+        {
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var geminiResponse = JsonSerializer.Deserialize<GeminiResponse>(responseBody);
+
+            if (geminiResponse?.Candidates != null && geminiResponse.Candidates.Length > 0)
+            {
+                var candidate = geminiResponse.Candidates[0];
+                if (candidate?.Content?.Parts != null && candidate.Content.Parts.Length > 0)
+                {
+                    var text = candidate.Content.Parts[0]?.Text;
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        var curlCommand = text.Trim();
+
+                        if (settings.AuthType == AuthType.BearerToken || settings.AuthType == AuthType.JwtBearer)
+                        {
+                            if (!string.IsNullOrWhiteSpace(settings.AuthToken))
+                            {
+                                curlCommand = curlCommand.Replace("REPLACEME", settings.AuthToken);
+                            }
+                        }
+                        else if (settings.AuthType == AuthType.BasicAuth)
+                        {
+                            if (!string.IsNullOrWhiteSpace(settings.BasicAuthUsername))
+                            {
+                                var credentials = settings.BasicAuthUsername;
+                                if (!string.IsNullOrWhiteSpace(settings.BasicAuthPassword))
+                                {
+                                    credentials += ":" + settings.BasicAuthPassword;
+                                }
+                                curlCommand = curlCommand.Replace("REPLACEME", credentials);
+                            }
+                        }
+
+                        return curlCommand;
+                    }
+                }
+            }
+
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new InvalidOperationException($"Failed to communicate with Gemini API: {ex.Message}", ex);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Failed to parse Gemini API response: {ex.Message}", ex);
+        }
+    }
+
+    private string BuildConfigurationContext(Settings settings)
+    {
+        // Mask header values to avoid sending sensitive data to AI
+        var maskedHeaders = settings.DefaultHeaders?.ToDictionary(
+            kvp => kvp.Key,
+            kvp => "REPLACEME"
+        );
+
+        var context = new
+        {
+            baseUrl = settings.BaseUrl ?? "NOT_SET",
+            defaultMethod = settings.DefaultMethod ?? "GET",
+            authType = settings.AuthType.ToString(),
+            hasAuthToken = !string.IsNullOrWhiteSpace(settings.AuthToken),
+            hasBasicAuthUsername = !string.IsNullOrWhiteSpace(settings.BasicAuthUsername),
+            hasBasicAuthPassword = !string.IsNullOrWhiteSpace(settings.BasicAuthPassword),
+            followRedirects = settings.FollowRedirects,
+            showProgress = settings.ShowProgress,
+            showError = settings.ShowError,
+            showHeaders = settings.ShowHeaders,
+            maxTimeSeconds = settings.MaxTimeSeconds,
+            defaultHeaders = maskedHeaders,
+            queryParameters = settings.QueryParameters,
+            recentPaths = settings.RecentPaths
+        };
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+        return JsonSerializer.Serialize(context, options);
+    }
+
+    public async Task<string?> DebugHttpErrorAsync(string errorMessage, string? requestDetails = null)
+    {
+        var settings = _configService.GetSettings();
+
+        if (string.IsNullOrWhiteSpace(settings.GeminiApiKey))
+        {
+            throw new InvalidOperationException("Gemini API key is not configured. Use -gk to set your API key.");
+        }
+
+        var debugPrompt = $@"You are an HTTP debugging assistant. Analyze the following HTTP error and provide brief, actionable troubleshooting suggestions.
+
+Error: {errorMessage}
+
+{(string.IsNullOrWhiteSpace(requestDetails) ? "" : $"Request Details:\n{requestDetails}\n")}
+
+Provide a concise response (3-5 bullet points max):
+1. Most likely cause
+2. 1-2 specific steps to fix the issue
+3. Any relevant curl flags or configuration changes
+
+Keep it brief and actionable. Avoid lengthy explanations.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    parts = new[]
+                    {
+                        new { text = debugPrompt }
+                    }
+                }
+            }
+        };
+
+        var jsonContent = JsonSerializer.Serialize(requestBody);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, GeminiApiUrl)
+        {
+            Content = content
+        };
+        request.Headers.Add("x-goog-api-key", settings.GeminiApiKey);
+
+        try
+        {
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var geminiResponse = JsonSerializer.Deserialize<GeminiResponse>(responseBody);
+
+            if (geminiResponse?.Candidates != null && geminiResponse.Candidates.Length > 0)
+            {
+                var candidate = geminiResponse.Candidates[0];
+                if (candidate?.Content?.Parts != null && candidate.Content.Parts.Length > 0)
+                {
+                    var text = candidate.Content.Parts[0]?.Text;
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        return text.Trim();
+                    }
+                }
+            }
+
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new InvalidOperationException($"Failed to communicate with Gemini API: {ex.Message}", ex);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Failed to parse Gemini API response: {ex.Message}", ex);
+        }
+    }
+}

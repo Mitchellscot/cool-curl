@@ -17,22 +17,17 @@ public class CurlService
         var settings = _configService.GetSettings();
         var curl = new StringBuilder("curl");
 
-        // Build the URL
         var url = HttpUtility.BuildUrl(settings, pathOverride);
 
-        // Add HTTP method
         if (!string.IsNullOrWhiteSpace(settings.DefaultMethod) && settings.DefaultMethod.ToUpper() != "GET")
         {
             curl.Append($" -X {settings.DefaultMethod.ToUpper()}");
         }
 
-        // Add authentication
         AddAuthentication(curl, settings);
 
-        // Add headers
         AddHeaders(curl, settings);
 
-        // Add other options
         if (settings.FollowRedirects)
         {
             curl.Append(" -L");
@@ -58,13 +53,12 @@ public class CurlService
             curl.Append($" --max-time {settings.MaxTimeSeconds.Value}");
         }
 
-        // Add URL at the end
         curl.Append($" \"{url}\"");
 
         return curl.ToString();
     }
 
-    private void AddAuthentication(StringBuilder curl, Settings settings)
+    public void AddAuthentication(StringBuilder curl, Settings settings)
     {
         switch (settings.AuthType)
         {
@@ -96,7 +90,7 @@ public class CurlService
         }
     }
 
-    private void AddHeaders(StringBuilder curl, Settings settings)
+    public void AddHeaders(StringBuilder curl, Settings settings)
     {
         foreach (var header in settings.DefaultHeaders)
         {
@@ -117,7 +111,6 @@ public class CurlService
         Console.ResetColor();
         Console.WriteLine();
 
-        // Save to disk if requested
         if (saveToDisk)
         {
             SaveCurlCommand(command);
@@ -130,7 +123,7 @@ public class CurlService
         SaveCurlCommand(command);
     }
 
-    private void SaveCurlCommand(string command)
+    public void SaveCurlCommand(string command)
     {
         HttpUtility.SaveToFile(command, "curl-commands", "curl", "Curl command saved to");
     }

@@ -21,4 +21,6 @@ public class Settings
         { "User-Agent", "CoolCurl/1.0" }
     };
     public Dictionary<string, string> QueryParameters { get; set; } = new();
+    public string? GeminiApiKey { get; set; }
+    public bool AllowAiDebugging { get; set; } = false;
 }

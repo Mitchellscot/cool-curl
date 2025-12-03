@@ -8,14 +8,12 @@ public static class HttpUtility
     {
         var baseUrl = settings.BaseUrl?.TrimEnd('/') ?? "";
 
-        // Use override path if provided, otherwise use most recent path
         var path = pathOverride;
         if (string.IsNullOrWhiteSpace(path) && settings.RecentPaths.Count > 0)
         {
             path = settings.RecentPaths[0];
         }
 
-        // Ensure path starts with /
         if (!string.IsNullOrWhiteSpace(path) && !path.StartsWith("/"))
         {
             path = "/" + path;
@@ -23,7 +21,6 @@ public static class HttpUtility
 
         var url = baseUrl + (path ?? "");
 
-        // Add query parameters if any
         if (settings.QueryParameters.Count > 0)
         {
             var queryString = string.Join("&", settings.QueryParameters.Select(kvp =>
@@ -56,18 +53,15 @@ public static class HttpUtility
             var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var outputDirectory = Path.Combine(homeDirectory, ".cool-curl", subdirectory);
 
-            // Create directory if it doesn't exist
             if (!Directory.Exists(outputDirectory))
             {
                 Directory.CreateDirectory(outputDirectory);
             }
 
-            // Generate filename with timestamp
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             var filename = $"{filePrefix}_{timestamp}.txt";
             var filePath = Path.Combine(outputDirectory, filename);
 
-            // Write content to file
             File.WriteAllText(filePath, content);
 
             Console.ForegroundColor = ConsoleColor.Green;

@@ -18,13 +18,11 @@ public class ConfigurationService
 
     private void EnsureConfigDirectoryAndFileExist()
     {
-        // Create directory if it doesn't exist
         if (!Directory.Exists(_configDirectory))
         {
             Directory.CreateDirectory(_configDirectory);
         }
 
-        // Create config file if it doesn't exist or is invalid
         if (!File.Exists(_configFilePath) || !IsValidConfig())
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -204,6 +202,26 @@ public class ConfigurationService
             settings.RecentPaths.Add(initialPath);
         }
 
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("AI Configuration (Optional)");
+        Console.ResetColor();
+        Console.WriteLine("Enter your Google Gemini API key to enable AI-powered curl generation.");
+        Console.WriteLine("Leave empty to skip AI features.");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Warning: API key will be stored in plain text!");
+        Console.ResetColor();
+        Console.Write("Gemini API Key: ");
+        var apiKey = Console.ReadLine();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            settings.GeminiApiKey = apiKey.Trim();
+
+            Console.Write("\nAllow AI to help debug HTTP errors? (y/n) [default: n]: ");
+            var allowDebugging = Console.ReadLine()?.ToLower();
+            settings.AllowAiDebugging = allowDebugging == "y";
+        }
+
         return settings;
     }
 
@@ -261,7 +279,7 @@ public class ConfigurationService
         File.WriteAllText(_configFilePath, json);
     }
 
-    public Settings GetSettings()
+    public virtual Settings GetSettings()
     {
         return LoadSettings();
     }
@@ -279,7 +297,6 @@ public class ConfigurationService
 
         settings.RecentPaths.Insert(0, path);
 
-        // Clear query parameters when a new path is added
         settings.QueryParameters = new Dictionary<string, string>();
 
         SaveSettings(settings);
@@ -351,6 +368,8 @@ public class ConfigurationService
         PrintRow("Show Error", settings.ShowError ? "Yes" : "No", labelWidth);
         PrintRow("Show Headers", settings.ShowHeaders ? "Yes" : "No", labelWidth);
         PrintRow("Max Time (seconds)", settings.MaxTimeSeconds?.ToString() ?? "(not set)", labelWidth);
+        PrintRow("Gemini API Key", MaskValue(settings.GeminiApiKey), labelWidth);
+        PrintRow("AI Debugging", settings.AllowAiDebugging ? "Enabled" : "Disabled", labelWidth);
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;

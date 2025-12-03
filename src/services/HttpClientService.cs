@@ -9,11 +9,21 @@ public class HttpClientService
 {
     private readonly ConfigurationService _configService;
     private readonly HttpClient _httpClient;
+    private readonly AiDebugService? _aiDebugService;
 
     public HttpClientService(ConfigurationService configService)
     {
         _configService = configService;
         _httpClient = new HttpClient();
+        
+        // Initialize AI debugging if enabled
+        var settings = configService.GetSettings();
+        if (settings.AllowAiDebugging && !string.IsNullOrWhiteSpace(settings.GeminiApiKey))
+        {
+            var geminiService = new GeminiService(configService);
+            _aiDebugService = new AiDebugService(geminiService, configService);
+        }
+        
         ConfigureHttpClient();
     }
 
@@ -21,14 +31,10 @@ public class HttpClientService
     {
         var settings = _configService.GetSettings();
 
-        // Set timeout if configured
         if (settings.MaxTimeSeconds.HasValue)
         {
             _httpClient.Timeout = TimeSpan.FromSeconds(settings.MaxTimeSeconds.Value);
         }
-
-        // Configure to follow redirects
-        // Note: HttpClient follows redirects by default, but we can control it via HttpClientHandler
     }
 
     public async Task<HttpResponseMessage> ExecuteRequestAsync(string? pathOverride = null)
@@ -36,20 +42,16 @@ public class HttpClientService
         var settings = _configService.GetSettings();
         var url = HttpUtility.BuildUrl(settings, pathOverride);
 
-        // Create request message
         var request = new HttpRequestMessage
         {
             RequestUri = new Uri(url),
             Method = HttpUtility.GetHttpMethod(settings.DefaultMethod)
         };
 
-        // Add authentication
         AddAuthentication(request, settings);
 
-        // Add headers
         AddHeaders(request, settings);
 
-        // Execute request
         var response = await _httpClient.SendAsync(request);
 
         return response;
@@ -73,7 +75,6 @@ public class HttpClientService
 
             var response = await ExecuteRequestAsync(pathOverride);
 
-            // Display and capture status
             var statusLine = $"Status: {(int)response.StatusCode} {response.ReasonPhrase}";
             Console.ForegroundColor = response.IsSuccessStatusCode ? ConsoleColor.Green : ConsoleColor.Red;
             Console.WriteLine(statusLine);
@@ -83,7 +84,23 @@ public class HttpClientService
             outputBuilder?.AppendLine(statusLine);
             outputBuilder?.AppendLine();
 
-            // Display and capture headers if configured
+            // Trigger AI debugging for non-success status codes
+            if (!response.IsSuccessStatusCode && _aiDebugService != null)
+            {
+                var url = HttpUtility.BuildUrl(settings, pathOverride);
+                var httpException = new HttpRequestException(
+                    $"Response status code does not indicate success: {(int)response.StatusCode} ({response.StatusCode}).",
+                    null,
+                    response.StatusCode
+                );
+
+                await _aiDebugService.DisplayDebugSuggestionsAsync(
+                    httpException,
+                    url,
+                    settings.DefaultMethod
+                );
+            }
+
             if (settings.ShowHeaders)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
@@ -110,7 +127,6 @@ public class HttpClientService
                 outputBuilder?.AppendLine();
             }
 
-            // Display and capture response body
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Response Body:");
             Console.ResetColor();
@@ -118,7 +134,6 @@ public class HttpClientService
 
             var content = await response.Content.ReadAsStringAsync();
 
-            // Try to format as JSON if it's JSON content
             var contentType = response.Content.Headers.ContentType?.MediaType;
             string displayContent = content ?? string.Empty;
             if (contentType is not null && contentType.Contains("json", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(displayContent))
@@ -133,7 +148,6 @@ public class HttpClientService
                 }
                 catch
                 {
-                    // If JSON parsing fails, displayContent already contains the raw content
                 }
             }
 
@@ -143,7 +157,6 @@ public class HttpClientService
             outputBuilder?.AppendLine(displayContent);
             outputBuilder?.AppendLine();
 
-            // Save output if requested
             if (saveOutput && outputBuilder != null)
             {
                 SaveOutputToFile(outputBuilder.ToString());
@@ -157,6 +170,12 @@ public class HttpClientService
                 Console.WriteLine($"HTTP Request Error: {ex.Message}");
                 Console.ResetColor();
             }
+
+            if (_aiDebugService != null)
+            {
+                var url = HttpUtility.BuildUrl(settings, pathOverride);
+                await _aiDebugService.DisplayDebugSuggestionsAsync(ex, url, settings.DefaultMethod);
+            }
         }
         catch (TaskCanceledException ex)
         {
@@ -166,6 +185,12 @@ public class HttpClientService
                 Console.WriteLine($"Request Timeout: {ex.Message}");
                 Console.ResetColor();
             }
+
+            if (_aiDebugService != null)
+            {
+                var url = HttpUtility.BuildUrl(settings, pathOverride);
+                await _aiDebugService.DisplayDebugSuggestionsAsync(ex, url, settings.DefaultMethod);
+            }
         }
         catch (Exception ex)
         {
@@ -174,6 +199,12 @@ public class HttpClientService
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error: {ex.Message}");
                 Console.ResetColor();
+            }
+
+            if (_aiDebugService != null)
+            {
+                var url = HttpUtility.BuildUrl(settings, pathOverride);
+                await _aiDebugService.DisplayDebugSuggestionsAsync(ex, url, settings.DefaultMethod);
             }
         }
     }
@@ -209,14 +240,12 @@ public class HttpClientService
     {
         foreach (var header in settings.DefaultHeaders)
         {
-            // Try to add as a request header, if it fails, it might be a content header
             try
             {
                 request.Headers.Add(header.Key, header.Value);
             }
             catch
             {
-                // Some headers can only be set on content, skip for now
             }
         }
     }
