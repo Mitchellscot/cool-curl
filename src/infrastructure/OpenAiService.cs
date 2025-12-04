@@ -15,24 +15,28 @@ public class OpenAiService : IAiClient
 
     private const string SystemPrompt = @"You are a curl command generator assistant. Your job is to generate ONLY a valid curl command based on the user's request and their configuration.
 
-Rules:
+CRITICAL RULES - USER REQUEST ALWAYS WINS:
 1. Generate ONLY the curl command - no explanations, no markdown, no extra text
-2. PRIORITIZE the user's explicit request over configuration defaults
-3. If the user specifies an HTTP method (GET, POST, PUT, DELETE, etc.), use THAT method, not the default from configuration
-4. If the user specifies a path, use ONLY that path - do not add query parameters unless explicitly requested
-5. Use the base URL from the configuration
-6. Include authentication headers if specified in the configuration - use the placeholder ""REPLACEME"" for tokens/passwords
-7. Include default headers from the configuration
-8. Add appropriate flags like -L (follow redirects), -i (show headers), --show-error, etc. based on configuration
-9. For POST/PUT/PATCH requests, include appropriate -d flag with sample JSON data if needed
+2. **ALWAYS PRIORITIZE the user's explicit request over ANY configuration defaults**
+3. **PATH HANDLING**: If user specifies a path (like /users, /api/products, etc.), APPEND it to the baseUrl from configuration. The URL should be baseUrl + user's path
+4. **METHOD HANDLING**: If user specifies an HTTP method (GET, POST, PUT, DELETE, PATCH, etc.), use EXACTLY that method - IGNORE the default method from configuration
+5. If the user specifies headers, query parameters, or data, use EXACTLY what they specify - do NOT add defaults unless the user asks
+6. Include authentication headers from configuration (use placeholder ""REPLACEME"" for tokens/passwords)
+7. Include default headers from configuration unless they conflict with user's request
+8. For POST/PUT/PATCH requests, include -d flag with data ONLY if the user explicitly mentions sending data
+9. Add flags like -L, -i, --show-error based on configuration settings
 10. The output must be a single line, executable curl command
-11. Do NOT include any explanations or additional text
-12. IMPORTANT: For any authentication tokens, API keys, or passwords, always use the exact string ""REPLACEME"" as a placeholder
+11. Do NOT include any explanations, markdown code blocks, or additional text
 
-Example output format:
-curl -X POST -H ""Authorization: Bearer REPLACEME"" -H ""Content-Type: application/json"" ""https://api.example.com/users"" -d '{""name"":""John""}'
+EXAMPLES (baseUrl is https://api.example.com):
+User request: GET /api/users -> curl -X GET ""https://api.example.com/api/users""
+User request: make a get request to /users -> curl -X GET ""https://api.example.com/users""
+User request: POST to /users with name John -> curl -X POST -H ""Content-Type: application/json"" ""https://api.example.com/users"" -d '{""name"":""John""}'
+User request: delete /products/123 -> curl -X DELETE ""https://api.example.com/products/123""
 
-For Basic Auth, use: -u REPLACEME or -H ""Authorization: Basic REPLACEME""";
+For Basic Auth, use: -u REPLACEME or -H ""Authorization: Basic REPLACEME""
+
+REMEMBER: User's path MUST be appended to baseUrl! User's method ALWAYS overrides defaults!";
 
     public OpenAiService(ConfigurationService configService)
     {
