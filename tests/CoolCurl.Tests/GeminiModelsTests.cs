@@ -9,7 +9,7 @@ public class GeminiModelsTests
     public void GeminiResponse_CanBeInstantiated()
     {
         var response = new GeminiResponse();
-        
+
         Assert.NotNull(response);
         Assert.Null(response.Candidates);
     }
@@ -30,7 +30,7 @@ public class GeminiModelsTests
     public void GeminiCandidate_CanBeInstantiated()
     {
         var candidate = new GeminiCandidate();
-        
+
         Assert.NotNull(candidate);
         Assert.Null(candidate.Content);
     }
@@ -50,7 +50,7 @@ public class GeminiModelsTests
     public void GeminiContent_CanBeInstantiated()
     {
         var content = new GeminiContent();
-        
+
         Assert.NotNull(content);
         Assert.Null(content.Parts);
     }
@@ -71,7 +71,7 @@ public class GeminiModelsTests
     public void GeminiPart_CanBeInstantiated()
     {
         var part = new GeminiPart();
-        
+
         Assert.NotNull(part);
         Assert.Null(part.Text);
     }
@@ -242,7 +242,7 @@ public class GeminiModelsTests
     public void GeminiPart_WithEmptyText_Works()
     {
         var part = new GeminiPart { Text = "" };
-        
+
         Assert.Equal("", part.Text);
     }
 }

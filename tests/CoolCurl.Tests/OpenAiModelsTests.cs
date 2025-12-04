@@ -9,7 +9,7 @@ public class OpenAiModelsTests
     public void OpenAiResponse_CanBeInstantiated()
     {
         var response = new OpenAiResponse();
-        
+
         Assert.NotNull(response);
         Assert.Null(response.Choices);
     }
@@ -30,7 +30,7 @@ public class OpenAiModelsTests
     public void OpenAiChoice_CanBeInstantiated()
     {
         var choice = new OpenAiChoice();
-        
+
         Assert.NotNull(choice);
         Assert.Null(choice.Message);
     }
@@ -50,7 +50,7 @@ public class OpenAiModelsTests
     public void OpenAiMessage_CanBeInstantiated()
     {
         var message = new OpenAiMessage();
-        
+
         Assert.NotNull(message);
         Assert.Null(message.Content);
     }
@@ -176,7 +176,7 @@ public class OpenAiModelsTests
     public void OpenAiMessage_WithEmptyContent_Works()
     {
         var message = new OpenAiMessage { Content = "" };
-        
+
         Assert.Equal("", message.Content);
     }
 
@@ -184,7 +184,7 @@ public class OpenAiModelsTests
     public void OpenAiResponse_WithNullMessage_Works()
     {
         var choice = new OpenAiChoice { Message = null };
-        
+
         Assert.Null(choice.Message);
     }
 }
