@@ -85,7 +85,7 @@ public class OpenAiModelsTests
         Assert.NotNull(response.Choices);
         Assert.Single(response.Choices);
         Assert.NotNull(response.Choices[0].Message);
-        Assert.Equal("curl command here", response.Choices[0].Message.Content);
+        Assert.Equal("curl command here", response.Choices[0].Message!.Content);
     }
 
     [Fact]

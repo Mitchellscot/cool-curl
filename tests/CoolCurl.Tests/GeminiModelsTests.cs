@@ -110,9 +110,9 @@ public class GeminiModelsTests
         Assert.NotNull(response.Candidates);
         Assert.Single(response.Candidates);
         Assert.NotNull(response.Candidates[0].Content);
-        Assert.NotNull(response.Candidates[0].Content.Parts);
-        Assert.Single(response.Candidates[0].Content.Parts);
-        Assert.Equal("curl command here", response.Candidates[0].Content.Parts[0].Text);
+        Assert.NotNull(response.Candidates[0].Content!.Parts);
+        Assert.Single(response.Candidates[0].Content!.Parts!);
+        Assert.Equal("curl command here", response.Candidates[0].Content!.Parts![0].Text);
     }
 
     [Fact]

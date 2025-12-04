@@ -40,6 +40,16 @@ CoolCurl streamlines API development workflows by:
 - **Path Management**: Track recent API paths for quick reuse
 - **Interactive Configuration**: Guided setup for all settings
 
+### AI-Powered Features
+- **AI Curl Generation**: Generate curl commands using natural language prompts
+  - Supports Google Gemini (gemini-2.0-flash-exp)
+  - Supports OpenAI (gpt-4o-mini)
+  - Example: `-ai "make a GET request to /users"`
+- **AI Error Debugging**: Automatic AI-powered analysis of HTTP errors
+  - Suggests fixes and troubleshooting steps
+  - Analyzes error context including URL, method, headers, and timeout settings
+  - Can be enabled/disabled per configuration
+
 ## Command-Line Options
 
 ### Basic Operations
@@ -69,6 +79,18 @@ CoolCurl streamlines API development workflows by:
 -mt, --max-timeout       Change max timeout in seconds
 -dh, --default-headers   Manage default headers
 -qp, --query-parameters  Manage query parameters
+-gk, --gemini-key        Change the Google Gemini API key
+-ok, --openai-key        Change the OpenAI API key
+-ad, --ai-debugging      Enable/disable AI-powered error debugging
+```
+
+### AI Features
+```
+-ai, --ai-prompt <prompt>  Generate curl command using AI prompt
+                           Example: -ai "make a GET request to /users"
+                           Supports Google Gemini or OpenAI (gpt-4o-mini)
+AI Debugging:              When enabled, HTTP errors are analyzed by AI
+                           to suggest fixes and troubleshooting steps
 ```
 
 ## Building and Running
@@ -162,6 +184,27 @@ CoolCurl -c
 CoolCurl -r
 ```
 
+### AI Features
+```bash
+# Generate curl command using AI prompt
+CoolCurl -ai "make a GET request to /users"
+CoolCurl -ai "POST to /api/products with JSON body"
+CoolCurl -ai "delete user with id 123"
+
+# Set up Google Gemini API key
+CoolCurl -gk
+
+# Set up OpenAI API key
+CoolCurl -ok
+
+# Enable AI debugging for HTTP errors
+CoolCurl -ad
+
+# Execute request with AI debugging enabled
+CoolCurl -p /api/users -e
+# (If request fails, AI will analyze and suggest fixes)
+```
+
 ## File Structure
 
 ```
@@ -195,11 +238,21 @@ The configuration is stored as JSON in `~/.cool-curl/.config`:
   "MaxTimeSeconds": 30,
   "DefaultHeaders": {
     "Accept": "application/json",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "User-Agent": "CoolCurl/1.0"
   },
-  "QueryParameters": {}
+  "QueryParameters": {},
+  "GeminiApiKey": null,
+  "OpenAiApiKey": null,
+  "AllowAiDebugging": false
 }
 ```
+
+### AuthType Values
+- `0` = None
+- `1` = BearerToken
+- `2` = BasicAuth
+- `3` = JwtBearer
 
 ## Development
 
@@ -207,22 +260,77 @@ The configuration is stored as JSON in `~/.cool-curl/.config`:
 ```
 cool-curl/
 ├── src/
-│   ├── Models/
-│   │   ├── Settings.cs
+│   ├── infrastructure/
+│   │   ├── AiDebugService.cs
+│   │   ├── GeminiService.cs
+│   │   ├── HttpClientService.cs
+│   │   ├── HttpUtility.cs
+│   │   ├── IAiClient.cs
+│   │   └── OpenAiService.cs
+│   ├── models/
 │   │   ├── AuthType.cs
-│   │   └── HttpMethods.cs
-│   ├── Services/
+│   │   ├── GeminiModels.cs
+│   │   ├── HttpMethods.cs
+│   │   ├── OpenAiModels.cs
+│   │   └── Settings.cs
+│   ├── services/
+│   │   ├── ApplicationOrchestrator.cs
 │   │   ├── ArgumentService.cs
 │   │   ├── ConfigurationService.cs
+│   │   ├── ConsoleWriter.cs
 │   │   ├── CurlService.cs
 │   │   ├── HelpService.cs
-│   │   ├── HttpClientService.cs
-│   │   └── HttpUtility.cs
-│   ├── Program.cs
+│   │   └── IConsoleWriter.cs
 │   ├── appsettings.json
-│   └── CoolCurl.csproj
+│   ├── CoolCurl.csproj
+│   └── Program.cs
+├── tests/
+│   ├── CoolCurl.Tests/           # Unit tests
+│   │   ├── ApplicationOrchestratorTests.cs
+│   │   ├── AuthTypeTests.cs
+│   │   ├── ConsoleWriterTests.cs
+│   │   ├── CurlServiceTests.cs
+│   │   ├── GeminiModelsTests.cs
+│   │   ├── HttpMethodsTests.cs
+│   │   ├── OpenAiModelsTests.cs
+│   │   ├── SettingsTests.cs
+│   │   └── CoolCurl.Tests.csproj
+│   └── CoolCurl.IntegrationTests/ # Integration tests
+│       ├── AiDebugServiceTests.cs
+│       ├── HttpClientServiceTests.cs
+│       ├── HttpUtilityTests.cs
+│       └── CoolCurl.IntegrationTests.csproj
 ├── cool-curl.sln
 └── README.md
+```
+
+### Running Tests
+
+**Run all tests:**
+```bash
+# Unit tests only
+dotnet test tests/CoolCurl.Tests/CoolCurl.Tests.csproj
+
+# Integration tests only
+dotnet test tests/CoolCurl.IntegrationTests/CoolCurl.IntegrationTests.csproj
+
+# All tests in solution
+dotnet test cool-curl.sln
+```
+
+**Test coverage:**
+```bash
+# Generate coverage for unit tests
+dotnet test tests/CoolCurl.Tests/CoolCurl.Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+
+# Generate coverage for integration tests
+dotnet test tests/CoolCurl.IntegrationTests/CoolCurl.IntegrationTests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+
+# Generate combined HTML coverage report
+reportgenerator "-reports:tests/CoolCurl.Tests/TestResults/coverage.opencover.xml;tests/CoolCurl.IntegrationTests/coverage.opencover.xml" -targetdir:coveragereport-combined -reporttypes:Html
+
+# View coverage report
+start coveragereport-combined/index.html
 ```
 
 ## License
