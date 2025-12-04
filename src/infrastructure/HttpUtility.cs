@@ -1,6 +1,6 @@
 using CoolCurl.Models;
 
-namespace CoolCurl.Services;
+namespace CoolCurl.Infrastructure;
 
 public static class HttpUtility
 {

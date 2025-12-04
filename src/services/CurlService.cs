@@ -1,4 +1,5 @@
 using CoolCurl.Models;
+using CoolCurl.Infrastructure;
 using System.Text;
 
 namespace CoolCurl.Services;

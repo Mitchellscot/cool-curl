@@ -2,8 +2,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CoolCurl.Models;
+using CoolCurl.Services;
 
-namespace CoolCurl.Services;
+namespace CoolCurl.Infrastructure;
 
 public class GeminiService : IAiClient
 {
@@ -75,7 +76,32 @@ For Basic Auth, use: -u REPLACEME or -H ""Authorization: Basic REPLACEME""";
         try
         {
             var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                var statusCode = (int)response.StatusCode;
+
+                Console.ForegroundColor = ConsoleColor.Red;
+                if (statusCode == 429)
+                {
+                    Console.WriteLine("Gemini API rate limit exceeded (15 requests/min or 1,500/day on free tier). Please wait a moment and try again.");
+                }
+                else if (statusCode == 403)
+                {
+                    Console.WriteLine("Gemini API permission denied. Check your API key with -gk or ensure the Generative Language API is enabled.");
+                }
+                else if (statusCode == 401)
+                {
+                    Console.WriteLine("Gemini API authentication failed. Check your API key with -gk");
+                }
+                else
+                {
+                    Console.WriteLine($"Gemini API error ({statusCode}): {errorBody}");
+                }
+                Console.ResetColor();
+                return null;
+            }
 
             var responseBody = await response.Content.ReadAsStringAsync();
             var geminiResponse = JsonSerializer.Deserialize<GeminiResponse>(responseBody);
@@ -129,10 +155,11 @@ For Basic Auth, use: -u REPLACEME or -H ""Authorization: Basic REPLACEME""";
 
     private string BuildConfigurationContext(Settings settings)
     {
-        // Mask header values to avoid sending sensitive data to AI
+        // Only mask headers that might contain sensitive data
+        var sensitiveHeaderNames = new[] { "Authorization", "X-API-Key", "X-Auth-Token", "Cookie", "X-CSRF-Token" };
         var maskedHeaders = settings.DefaultHeaders?.ToDictionary(
             kvp => kvp.Key,
-            kvp => "REPLACEME"
+            kvp => sensitiveHeaderNames.Contains(kvp.Key, StringComparer.OrdinalIgnoreCase) ? "REPLACEME" : kvp.Value
         );
 
         var context = new
@@ -209,7 +236,32 @@ Keep it brief and actionable. Avoid lengthy explanations.";
         try
         {
             var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                var statusCode = (int)response.StatusCode;
+
+                Console.ForegroundColor = ConsoleColor.Red;
+                if (statusCode == 429)
+                {
+                    Console.WriteLine("Gemini API rate limit exceeded (15 requests/min or 1,500/day on free tier). Please wait a moment and try again.");
+                }
+                else if (statusCode == 403)
+                {
+                    Console.WriteLine("Gemini API permission denied. Check your API key with -gk or ensure the Generative Language API is enabled.");
+                }
+                else if (statusCode == 401)
+                {
+                    Console.WriteLine("Gemini API authentication failed. Check your API key with -gk");
+                }
+                else
+                {
+                    Console.WriteLine($"Gemini API error ({statusCode}): {errorBody}");
+                }
+                Console.ResetColor();
+                return null;
+            }
 
             var responseBody = await response.Content.ReadAsStringAsync();
             var geminiResponse = JsonSerializer.Deserialize<GeminiResponse>(responseBody);

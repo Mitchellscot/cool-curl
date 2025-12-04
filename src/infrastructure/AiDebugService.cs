@@ -1,6 +1,7 @@
 using CoolCurl.Models;
+using CoolCurl.Services;
 
-namespace CoolCurl.Services;
+namespace CoolCurl.Infrastructure;
 
 public class AiDebugService
 {
@@ -22,7 +23,7 @@ public class AiDebugService
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(settings.GeminiApiKey))
+        if (string.IsNullOrWhiteSpace(settings.OpenAiApiKey) && string.IsNullOrWhiteSpace(settings.GeminiApiKey))
         {
             return null;
         }
@@ -101,12 +102,13 @@ public class AiDebugService
         if (!string.IsNullOrWhiteSpace(suggestions))
         {
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.ForegroundColor = ConsoleColor.Magenta;
             Console.WriteLine("=== AI Debug Suggestions ===");
-            Console.ResetColor();
+
             Console.WriteLine();
             Console.WriteLine(suggestions);
             Console.WriteLine();
+            Console.ResetColor();
         }
     }
 }

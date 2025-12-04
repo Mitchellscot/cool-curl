@@ -46,6 +46,7 @@ public class HelpService
         Console.WriteLine("  -dh, --default-headers   Manage default headers");
         Console.WriteLine("  -qp, --query-parameters  Manage query parameters");
         Console.WriteLine("  -gk, --gemini-key        Change the Google Gemini API key");
+        Console.WriteLine("  -ok, --openai-key        Change the OpenAI API key");
         Console.WriteLine("  -ad, --ai-debugging      Enable/disable AI-powered error debugging\n");
 
         Console.ForegroundColor = ConsoleColor.Yellow;
@@ -53,8 +54,9 @@ public class HelpService
         Console.ResetColor();
         Console.WriteLine("  -ai, --ai-prompt <prompt>  Generate curl command using AI prompt");
         Console.WriteLine("                             Example: -ai \"make a GET request to /users\"");
+        Console.WriteLine("                             Supports Google Gemini or OpenAI (gpt-4o-mini)");
         Console.WriteLine("  AI Debugging:              When enabled, HTTP errors are analyzed by AI");
-        Console.WriteLine("                             to suggest fixes and troubleshooting steps\n");
+        Console.WriteLine("                             to suggest fixes and troubleshooting steps");
 
         Console.WriteLine("More features and options coming soon!\n");
     }

@@ -206,20 +206,41 @@ public class ConfigurationService
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("AI Configuration (Optional)");
         Console.ResetColor();
-        Console.WriteLine("Enter your Google Gemini API key to enable AI-powered curl generation.");
-        Console.WriteLine("Leave empty to skip AI features.");
+        Console.WriteLine("Choose an AI provider for curl generation and debugging (or skip):");
+        Console.WriteLine("  1. Google Gemini (free tier available)");
+        Console.WriteLine("  2. OpenAI (gpt-4o-mini - cheapest option)");
+        Console.WriteLine("  3. Skip AI features");
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("Warning: API key will be stored in plain text!");
+        Console.WriteLine("Warning: API keys will be stored in plain text!");
         Console.ResetColor();
-        Console.Write("Gemini API Key: ");
-        var apiKey = Console.ReadLine();
-        if (!string.IsNullOrWhiteSpace(apiKey))
-        {
-            settings.GeminiApiKey = apiKey.Trim();
+        Console.Write("Select AI provider (1-3) [default: 3]: ");
+        var aiProviderInput = Console.ReadLine();
 
-            Console.Write("\nAllow AI to help debug HTTP errors? (y/n) [default: n]: ");
-            var allowDebugging = Console.ReadLine()?.ToLower();
-            settings.AllowAiDebugging = allowDebugging == "y";
+        if (aiProviderInput == "1")
+        {
+            Console.Write("\nGemini API Key: ");
+            var geminiKey = Console.ReadLine();
+            if (!string.IsNullOrWhiteSpace(geminiKey))
+            {
+                settings.GeminiApiKey = geminiKey.Trim();
+
+                Console.Write("\nAllow AI to help debug HTTP errors? (y/n) [default: n]: ");
+                var allowDebugging = Console.ReadLine()?.ToLower();
+                settings.AllowAiDebugging = allowDebugging == "y";
+            }
+        }
+        else if (aiProviderInput == "2")
+        {
+            Console.Write("\nOpenAI API Key: ");
+            var openAiKey = Console.ReadLine();
+            if (!string.IsNullOrWhiteSpace(openAiKey))
+            {
+                settings.OpenAiApiKey = openAiKey.Trim();
+
+                Console.Write("\nAllow AI to help debug HTTP errors? (y/n) [default: n]: ");
+                var allowDebugging = Console.ReadLine()?.ToLower();
+                settings.AllowAiDebugging = allowDebugging == "y";
+            }
         }
 
         return settings;
@@ -369,6 +390,7 @@ public class ConfigurationService
         PrintRow("Show Headers", settings.ShowHeaders ? "Yes" : "No", labelWidth);
         PrintRow("Max Time (seconds)", settings.MaxTimeSeconds?.ToString() ?? "(not set)", labelWidth);
         PrintRow("Gemini API Key", MaskValue(settings.GeminiApiKey), labelWidth);
+        PrintRow("OpenAI API Key", MaskValue(settings.OpenAiApiKey), labelWidth);
         PrintRow("AI Debugging", settings.AllowAiDebugging ? "Enabled" : "Disabled", labelWidth);
 
         Console.WriteLine();

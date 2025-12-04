@@ -22,5 +22,6 @@ public class Settings
     };
     public Dictionary<string, string> QueryParameters { get; set; } = new();
     public string? GeminiApiKey { get; set; }
+    public string? OpenAiApiKey { get; set; }
     public bool AllowAiDebugging { get; set; } = false;
 }

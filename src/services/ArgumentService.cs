@@ -25,6 +25,7 @@ public class ArgumentService
     public bool ChangeDefaultHeaders { get; private set; }
     public bool ChangeQueryParameters { get; private set; }
     public bool ChangeGeminiApiKey { get; private set; }
+    public bool ChangeOpenAiApiKey { get; private set; }
     public bool ChangeAiDebugging { get; private set; }
     public bool UseAiPrompt { get; private set; }
     public string? AiPrompt { get; private set; }
@@ -124,6 +125,10 @@ public class ArgumentService
                 case "-gk":
                 case "--gemini-key":
                     ChangeGeminiApiKey = true;
+                    break;
+                case "-ok":
+                case "--openai-key":
+                    ChangeOpenAiApiKey = true;
                     break;
                 case "-ad":
                 case "--ai-debugging":
@@ -674,6 +679,30 @@ public class ArgumentService
         Console.ResetColor();
     }
 
+    public void HandleOpenAiApiKeyChange(ConfigurationService configService)
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("\n=== Change OpenAI API Key ===\n");
+        Console.ResetColor();
+
+        var currentSettings = configService.GetSettings();
+        var maskedKey = string.IsNullOrEmpty(currentSettings.OpenAiApiKey) ? "(not set)" : "***" + currentSettings.OpenAiApiKey[^4..];
+        Console.WriteLine($"Current OpenAI API Key: {maskedKey}");
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Warning: API key will be stored in plain text!");
+        Console.ResetColor();
+        Console.Write("\nEnter new OpenAI API key (leave empty to clear): ");
+        var input = Console.ReadLine();
+
+        currentSettings.OpenAiApiKey = string.IsNullOrWhiteSpace(input) ? null : input.Trim();
+        configService.UpdateSettings(currentSettings);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine(currentSettings.OpenAiApiKey == null ? "\nOpenAI API key cleared." : "\nOpenAI API key updated.");
+        Console.ResetColor();
+    }
+
     public void HandleAiDebuggingChange(ConfigurationService configService)
     {
         Console.ForegroundColor = ConsoleColor.Cyan;
@@ -683,7 +712,7 @@ public class ArgumentService
         var currentSettings = configService.GetSettings();
         Console.WriteLine($"Current setting: {(currentSettings.AllowAiDebugging ? "Enabled" : "Disabled")}");
         Console.WriteLine("\nWhen enabled, AI will analyze HTTP errors and suggest fixes.");
-        Console.WriteLine("This requires a valid Gemini API key.");
+        Console.WriteLine("This requires a valid Gemini or OpenAI API key.");
 
         Console.Write("\nEnable AI debugging? (true/false): ");
         var input = Console.ReadLine();

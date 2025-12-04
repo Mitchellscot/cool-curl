@@ -1,9 +1,10 @@
 using CoolCurl.Models;
+using CoolCurl.Services;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
-namespace CoolCurl.Services;
+namespace CoolCurl.Infrastructure;
 
 public class HttpClientService
 {
@@ -15,15 +16,28 @@ public class HttpClientService
     {
         _configService = configService;
         _httpClient = new HttpClient();
-        
-        // Initialize AI debugging if enabled
+
         var settings = configService.GetSettings();
-        if (settings.AllowAiDebugging && !string.IsNullOrWhiteSpace(settings.GeminiApiKey))
+        if (settings.AllowAiDebugging)
         {
-            var geminiService = new GeminiService(configService);
-            _aiDebugService = new AiDebugService(geminiService, configService);
+            IAiClient? aiClient = null;
+
+            if (!string.IsNullOrWhiteSpace(settings.GeminiApiKey))
+            {
+                aiClient = new GeminiService(configService);
+            }
+            else if (!string.IsNullOrWhiteSpace(settings.OpenAiApiKey))
+            {
+                aiClient = new OpenAiService(configService);
+            }
+
+
+            if (aiClient != null)
+            {
+                _aiDebugService = new AiDebugService(aiClient, configService);
+            }
         }
-        
+
         ConfigureHttpClient();
     }
 

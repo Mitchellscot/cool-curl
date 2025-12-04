@@ -1,5 +1,6 @@
 using CoolCurl.Models;
 using CoolCurl.Services;
+using CoolCurl.Infrastructure;
 using Moq;
 
 namespace CoolCurl.Tests;
